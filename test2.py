@@ -32,7 +32,7 @@ def show_images(data, num_samples=20, cols=4):
     for i, img in enumerate(data):
         if i == num_samples:
             break
-        plt.subplot(num_samples / cols + 1, cols, i + 1)
+        plt.subplot(int(num_samples / cols) + 1, cols, i + 1)
         plt.imshow(img[0])
 
 
@@ -119,10 +119,10 @@ def load_transformed_dataset():
     ]
     data_transform = transforms.Compose(data_transforms)
 
-    train = torchvision.datasets.StanfordCars(root=".", download=True,
+    train = torchvision.datasets.StanfordCars(root=data_folder, download=False,
                                               transform=data_transform)
 
-    test = torchvision.datasets.StanfordCars(root=".", download=True,
+    test = torchvision.datasets.StanfordCars(root=data_folder, download=False,
                                              transform=data_transform, split='test')
     return torch.utils.data.ConcatDataset([train, test])
 

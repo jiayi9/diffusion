@@ -26,7 +26,7 @@ import torchvision
 import matplotlib.pyplot as plt
 
 
-def show_images(datset, num_samples=20, cols=4):
+def show_images(data, num_samples=20, cols=4):
     """ Plots some samples from the dataset """
     plt.figure(figsize=(15, 15))
     for i, img in enumerate(data):
@@ -36,7 +36,8 @@ def show_images(datset, num_samples=20, cols=4):
         plt.imshow(img[0])
 
 
-data = torchvision.datasets.StanfordCars(root=".", download=True)
+data_folder = r'C:\Temp\cars'
+data = torchvision.datasets.StanfordCars(root=data_folder, download=False)
 show_images(data)
 
 """Later in this notebook we will do some additional modifications to this dataset, for example make the images smaller, convert them to tensors ect.

@@ -37,8 +37,12 @@ def show_images(data, num_samples=20, cols=4):
 
 
 data_folder = r'C:\Temp\cars'
-data = torchvision.datasets.StanfordCars(root=data_folder, download=False)
-show_images(data)
+
+# data = torchvision.datasets.StanfordCars(root=data_folder, download=False)
+# show_images(data)
+#
+# data = torchvision.datasets.StanfordCars(root=data_folder, download=False, split='test')
+# show_images(data)
 
 """Later in this notebook we will do some additional modifications to this dataset, for example make the images smaller, convert them to tensors ect.
 
@@ -107,7 +111,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 
 IMG_SIZE = 64
-BATCH_SIZE = 128
+BATCH_SIZE = 4
 
 
 def load_transformed_dataset():
@@ -122,7 +126,7 @@ def load_transformed_dataset():
     train = torchvision.datasets.StanfordCars(root=data_folder, download=False,
                                               transform=data_transform)
 
-    test = torchvision.datasets.StanfordCars(root=data_folder, download=False,
+    test = torchvision.datasets.StanfordCars(root=data_folder, download=True,
                                              transform=data_transform, split='test')
     return torch.utils.data.ConcatDataset([train, test])
 
@@ -148,6 +152,8 @@ dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, drop_last=Tru
 # Simulate forward diffusion
 image = next(iter(dataloader))[0]
 
+print(image.shape)
+
 plt.figure(figsize=(15, 15))
 plt.axis('off')
 num_images = 10
@@ -155,7 +161,7 @@ stepsize = int(T / num_images)
 
 for idx in range(0, T, stepsize):
     t = torch.Tensor([idx]).type(torch.int64)
-    plt.subplot(1, num_images + 1, (idx / stepsize) + 1)
+    plt.subplot(1, num_images + 1, int((idx / stepsize)) + 1)
     image, noise = forward_diffusion_sample(image, t)
     show_tensor_image(image)
 
@@ -358,7 +364,7 @@ from torch.optim import Adam
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device)
 optimizer = Adam(model.parameters(), lr=0.001)
-epochs = 100  # Try more!
+epochs = 20  # Try more!
 
 for epoch in range(epochs):
     for step, batch in enumerate(dataloader):
@@ -371,7 +377,7 @@ for epoch in range(epochs):
 
         if epoch % 5 == 0 and step == 0:
             print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
-            sample_plot_image()
+            #sample_plot_image()
 
 """In Table 2, we show the sample quality effects of reverse process parameterizations and training
 objectives (Section 3.2). We find that the baseline option of predicting µ˜ works well only when

@@ -24,6 +24,8 @@ As dataset we use the StandordCars Dataset, which consists of around 8000 images
 import torch
 import torchvision
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+import cv2
 
 
 def show_images(data, num_samples=20, cols=4):
@@ -40,6 +42,7 @@ data_folder = r'D:\Temp\cars'
 
 # data = torchvision.datasets.StanfordCars(root=data_folder, download=False)
 # show_images(data)
+
 # data = torchvision.datasets.StanfordCars(root=data_folder, download=True, split='test')
 # show_images(data)
 
@@ -110,7 +113,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 
 IMG_SIZE = 64
-BATCH_SIZE = 4
+BATCH_SIZE = 60
 
 
 def load_transformed_dataset():
@@ -136,14 +139,14 @@ def show_tensor_image(image):
         transforms.Lambda(lambda t: t.permute(1, 2, 0)),  # CHW to HWC
         transforms.Lambda(lambda t: t * 255.),
         transforms.Lambda(lambda t: t.numpy().astype(np.uint8)),
-        transforms.ToPILImage(),
+        #transforms.ToPILImage(),
     ])
 
     # Take first image of batch
     if len(image.shape) == 4:
         image = image[0, :, :, :]
-    plt.imshow(reverse_transforms(image))
-
+    # plt.imshow(reverse_transforms(image))
+    return reverse_transforms(image)
 
 data = load_transformed_dataset()
 dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
@@ -342,18 +345,29 @@ def sample_plot_image():
     # Sample noise
     img_size = IMG_SIZE
     img = torch.randn((1, 3, img_size, img_size), device=device)
-    plt.figure(figsize=(15, 15))
-    plt.axis('off')
+    # plt.figure(figsize=(15, 15))
+    # plt.axis('off')
     num_images = 10
     stepsize = int(T / num_images)
 
+    buffer = np.zeros((IMG_SIZE, 10, 3))
+
+    L = list()
     for i in range(0, T)[::-1]:
         t = torch.full((1,), i, device=device, dtype=torch.long)
         img = sample_timestep(img, t)
         if i % stepsize == 0:
-            plt.subplot(1, num_images, i / stepsize + 1)
-            show_tensor_image(img.detach().cpu())
-    plt.show()
+            transformed_back_image = show_tensor_image(img.detach().cpu())
+            L.append(transformed_back_image)
+            L.append(buffer)
+
+    canvas = np.concatenate(L, axis=1)
+
+    return canvas
+    # print(transformed_back_image.shape)
+    # print(canvas.shape)
+    # cv2.imwrite('D:/x1.jpg', canvas)
+
 
 
 """## Training"""
@@ -364,10 +378,14 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device)
 print(device)
 optimizer = Adam(model.parameters(), lr=0.001)
-epochs = 100  # Try more!
+epochs = 1000  # Try more!
 
 for epoch in range(epochs):
-    for step, batch in enumerate(dataloader):
+    for step, batch in enumerate(tqdm(dataloader)):
+
+        # if step > 10:
+        #     break
+
         optimizer.zero_grad()
 
         t = torch.randint(0, T, (BATCH_SIZE,), device=device).long()
@@ -377,7 +395,9 @@ for epoch in range(epochs):
 
         if epoch % 5 == 0 and step == 0:
             print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
-            #sample_plot_image()
+            filename = f"D:/temp/diffusion/epoch_{epoch}_step_{step}.jpg"
+            cv2.imwrite(filename, sample_plot_image())
+            #
 
 """In Table 2, we show the sample quality effects of reverse process parameterizations and training
 objectives (Section 3.2). We find that the baseline option of predicting µ˜ works well only when

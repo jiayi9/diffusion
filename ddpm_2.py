@@ -107,10 +107,16 @@ class ContextUnet(nn.Module):
 
         self.up_sample_0 = nn.Sequential(
             # nn.ConvTranspose2d(6 * n_feat, 2 * n_feat, 7, 7), # when concat temb and cemb end up w 6*n_feat
-            nn.ConvTranspose2d(2 * n_feat, 2 * n_feat, 7, 7),  # otherwise just have 2*n_feat
-            nn.GroupNorm(8, 2 * n_feat),
+            nn.ConvTranspose2d(8 * n_feat, 8 * n_feat, 7, 7),  # otherwise just have 2*n_feat
+            nn.GroupNorm(8, 8 * n_feat),
             nn.ReLU(),
         )
+
+        nnn = nn.ConvTranspose2d(4, 4, 7, 7)
+        x = torch.rand(2, 4, 1, 1)
+
+        nnn(x).shape
+
 
         self.up_sample_1 = UnetUp(16 * n_feat, n_feat)
         self.up_sample_2 = UnetUp(8 * n_feat, n_feat)
@@ -127,8 +133,8 @@ class ContextUnet(nn.Module):
     def forward(self, x, c, t, context_mask):
         # x is (noisy) image, c is context label, t is timestep,
         # context_mask says which samples to block the context on
-        x = torch.concat([x,x,x,x], axis=2)
-        x = torch.concat([x,x,x,x], axis=3)
+        # x = torch.concat([x,x,x,x], axis=2)
+        # x = torch.concat([x,x,x,x], axis=3)
 
         x = self.init_conv(x)
         # x.shape
@@ -308,8 +314,8 @@ def train_mnist():
 
     # download data first
     # dataset = MNIST("D:/temp/teapearce/mnist", train=True, download=True)#, transform=tf)
-    data_folder = "D:/temp/teapearce/mnist"
-    save_dir = 'D:/temp/teapearce/diffusion_outputs10/'
+    data_folder = "C:/temp/teapearce/mnist"
+    save_dir = 'C:/temp/teapearce/diffusion_outputs10/'
 
     # hardcoding these here
     n_epoch = 10
@@ -330,7 +336,7 @@ def train_mnist():
     # optionally load a model
     # ddpm.load_state_dict(torch.load("./data/diffusion_outputs/ddpm_unet01_mnist_9.pth"))
 
-    tf = transforms.Compose([transforms.ToTensor()])  # mnist is already normalised 0 to 1
+    tf = transforms.Compose([transforms.ToTensor(), transforms.Resize((112, 112))])  # mnist is already normalised 0 to 1
 
     dataset = MNIST(data_folder, train=True, download=True, transform=tf)
 

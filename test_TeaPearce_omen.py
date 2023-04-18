@@ -145,6 +145,19 @@ class ContextUnet(nn.Module):
             nn.ReLU(),
         )
 
+        # x = torch.rand(1, 512, 7 , 7)
+        # x.shape
+        # f = nn.Sequential(nn.AvgPool2d(7), nn.GELU())
+        # f(x).shape
+        # x2 = f(x)
+        # x2.shape
+        #
+        # x3 = nn.ConvTranspose2d(2 * 256, 2 * 256, 7, 7)(x2)
+        # x3.shape
+        #
+        # x4 = nn.GroupNorm(8, 2 * 256)(x3)
+        # x4.shape
+
         self.up1 = UnetUp(4 * n_feat, n_feat)
         self.up2 = UnetUp(2 * n_feat, n_feat)
         self.out = nn.Sequential(

@@ -183,7 +183,23 @@ class ContextUnet(nn.Module):
 
         up1 = self.up0(hiddenvec)
         # up2 = self.up1(up1, down2) # if want to avoid add and multiply embeddings
+        breakpoint()
         up2 = self.up1(cemb1 * up1 + temb1, down2)  # add and multiply embeddings
+
+        # torch.Size([4, 256, 1, 1]) x torch.Size([4, 256, 7, 7]) + torch.Size([4, 256, 1, 1])
+
+        # x = torch.ones(1, 2, 1, 1)
+        # x[0][0][0][0] = 100
+        # x[0][1][0][0] = 0
+        #
+        # y = torch.ones(1, 2, 2, 2)
+        # y[:,:,0,0] = 10
+        # y[:,:,0,1] = 20
+        # y[:,:,1,0] = 30
+        # y[:,:,1,1] = 40
+        #
+        # x*y
+
         up3 = self.up2(cemb2 * up2 + temb2, down1)
         out = self.out(torch.cat((up3, x), 1))
         return out
@@ -315,9 +331,11 @@ def train_mnist():
 
     # hardcoding these here
     n_epoch = 20
-    batch_size = 256
+    batch_size = 4
     n_T = 400  # 500
     device = "cuda:0"
+    device = "cpu"
+
     n_classes = 10
     n_feat = 128  # 128 ok, 256 better (but slower)
     lrate = 1e-4

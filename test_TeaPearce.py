@@ -365,11 +365,14 @@ def train_mnist():
 
         pbar = tqdm(dataloader)
         loss_ema = None
-        for x, c in pbar:
+        for x, cc in pbar:
             optim.zero_grad()
             x = x.to(device)
-            c = c.to(device)
-            loss = ddpm(x, c)
+            # torch.Size([4, 1, 28, 28])
+            cc = cc.to(device)
+            # torch.Size([4])
+            breakpoint()
+            loss = ddpm(x, cc)
             loss.backward()
             if loss_ema is None:
                 loss_ema = loss.item()

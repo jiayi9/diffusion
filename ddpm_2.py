@@ -1,6 +1,14 @@
+from typing import Dict, Tuple
+from tqdm import tqdm
 import torch
 import torch.nn as nn
-from matplotlib import pyplot as plt
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+from torchvision import models, transforms
+from torchvision.datasets import MNIST
+from torchvision.utils import save_image, make_grid
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, PillowWriter
 import numpy as np
 
 
@@ -212,9 +220,6 @@ class DDPM(nn.Module):
         # generate a random step for each image in the batch
         _ts = torch.randint(1, self.n_T + 1, (x.shape[0],)).to(self.device)  # t ~ Uniform(0, n_T)
 
-        # sample 20 int from 1 to 101
-        # torch.randint(1, 100 + 1, (20,))
-
         noise = torch.randn_like(x)  # eps ~ N(0, 1)
 
         x_t = (
@@ -226,13 +231,7 @@ class DDPM(nn.Module):
         # dropout context with some probability
         context_mask = torch.bernoulli(torch.zeros_like(c) + self.drop_prob).to(self.device)
 
-        # torch.bernoulli(torch.zeros(3,3) + 0.2)
-        # torch.bernoulli(torch.zeros(3,3) + 0.8)
-
         # return MSE between added noise, and our predicted noise
-
-        # x_t is generated diffused image
-        # c is ? predicted ?
         return self.loss_mse(noise, self.nn_model(x_t, c, _ts / self.n_T, context_mask))
 
     def sample(self, n_sample, size, device, guide_w=0.0):
@@ -288,7 +287,6 @@ class DDPM(nn.Module):
 
         x_i_store = np.array(x_i_store)
         return x_i, x_i_store
-
 
 
 def train_mnist():

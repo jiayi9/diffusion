@@ -90,8 +90,8 @@ class ContextUnet(nn.Module):
 
         self.down_sample_1 = UnetDown(n_feat, n_feat)
         self.down_sample_2 = UnetDown(n_feat, 2 * n_feat)
-        self.down_sample_3 = UnetDown(n_feat, 4 * n_feat)
-        self.down_sample_4 = UnetDown(n_feat, 8 * n_feat)
+        self.down_sample_3 = UnetDown(2 * n_feat, 4 * n_feat)
+        self.down_sample_4 = UnetDown(4 * n_feat, 8 * n_feat)
 
         self.to_vec = nn.Sequential(nn.AvgPool2d(7), nn.GELU())
 
@@ -127,14 +127,29 @@ class ContextUnet(nn.Module):
     def forward(self, x, c, t, context_mask):
         # x is (noisy) image, c is context label, t is timestep,
         # context_mask says which samples to block the context on
+        x = torch.concat([x,x,x,x], axis=2)
+        x = torch.concat([x,x,x,x], axis=3)
 
         x = self.init_conv(x)
+        # x.shape
+        # torch.Size([10, 64, 112, 112])
+
         down_1 = self.down_sample_1(x)
+        # torch.Size([10, 64, 56, 56])
+
         down_2 = self.down_sample_2(down_1)
+        # torch.Size([10, 128, 28, 28])
+
         down_3 = self.down_sample_3(down_2)
+        # torch.Size([10, 256, 14, 14])
+
         down_4 = self.down_sample_4(down_3)
+        # torch.Size([10, 512, 7, 7])
 
         hidden_vec = self.to_vec(down_4)
+        # torch.Size([10, 512, 1, 1])
+
+        breakpoint()
 
         # convert context to one hot embedding
         c = nn.functional.one_hot(c, num_classes=self.n_classes).type(torch.float)
@@ -146,15 +161,15 @@ class ContextUnet(nn.Module):
         c = c * context_mask
 
         # embed context, time step
-        c_emb_1 = self.contextembed1(c).view(-1, self.n_feat * 8, 1, 1)
-        c_emb_2 = self.contextembed2(c).view(-1, self.n_feat * 4, 1, 1)
-        c_emb_3 = self.contextembed2(c).view(-1, self.n_feat * 2, 1, 1)
-        c_emb_4 = self.contextembed2(c).view(-1, self.n_feat * 1, 1, 1)
+        c_emb_1 = self.context_embed_1(c).view(-1, self.n_feat * 8, 1, 1)
+        c_emb_2 = self.context_embed_2(c).view(-1, self.n_feat * 4, 1, 1)
+        c_emb_3 = self.context_embed_3(c).view(-1, self.n_feat * 2, 1, 1)
+        c_emb_4 = self.context_embed_4(c).view(-1, self.n_feat * 1, 1, 1)
 
-        t_emb_1 = self.timeembed1(t).view(-1, self.n_feat * 8, 1, 1)
-        t_emb_2 = self.timeembed2(t).view(-1, self.n_feat * 4, 1, 1)
-        t_emb_3 = self.timeembed2(t).view(-1, self.n_feat * 2, 1, 1)
-        t_emb_4 = self.timeembed2(t).view(-1, self.n_feat * 1, 1, 1)
+        t_emb_1 = self.time_embed_1(t).view(-1, self.n_feat * 8, 1, 1)
+        t_emb_2 = self.time_embed_2(t).view(-1, self.n_feat * 4, 1, 1)
+        t_emb_3 = self.time_embed_3(t).view(-1, self.n_feat * 2, 1, 1)
+        t_emb_4 = self.time_embed_4(t).view(-1, self.n_feat * 1, 1, 1)
 
         # could concatenate the context embedding here instead of adaGN
         # hiddenvec = torch.cat((hiddenvec, temb1, cemb1), 1)
@@ -298,8 +313,8 @@ def train_mnist():
 
     # hardcoding these here
     n_epoch = 10
-    batch_size = 512
-    n_T = 400  # 500
+    batch_size = 10
+    n_T = 200  # 500
     device = "cuda" if torch.cuda.is_available() else "cpu"
     #device = "cuda:0"
     n_classes = 10
@@ -329,13 +344,14 @@ def train_mnist():
         # linear lrate decay
         optim.param_groups[0]['lr'] = lrate * (1 - ep / n_epoch)
 
-        pbar = tqdm(dataloader)
+        #pbar = tqdm(dataloader)
         loss_ema = None
-        for x, c in pbar:
+        # for x, cc in pbar:
+        for x, cc in dataloader:
             optim.zero_grad()
             x = x.to(device)
-            c = c.to(device)
-            loss = ddpm(x, c)
+            cc = cc.to(device)
+            loss = ddpm(x, cc)
             loss.backward()
             if loss_ema is None:
                 loss_ema = loss.item()
@@ -357,7 +373,7 @@ def train_mnist():
                 for k in range(n_classes):
                     for j in range(int(n_sample / n_classes)):
                         try:
-                            idx = torch.squeeze((c == k).nonzero())[j]
+                            idx = torch.squeeze((cc == k).nonzero())[j]
                         except:
                             idx = 0
                         x_real[k + (j * n_classes)] = x[idx]

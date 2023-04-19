@@ -327,7 +327,7 @@ def train_mnist():
 
     # hardcoding these here
     n_epoch = 1000
-    batch_size = 40
+    batch_size = 60
     n_T = 500  # 500
     device = "cuda" if torch.cuda.is_available() else "cpu"
     n_classes = 10

@@ -79,9 +79,9 @@ class ClsDataset(Dataset):
         label = torch.tensor(label, dtype=torch.int64)
 
         img_path = self.img_paths[idx]
-        #img = np.asarray(Image.open(img_path))/255
+        img = np.asarray(Image.open(img_path))/255
 
-        img = 1 - np.asarray(Image.open(img_path))/255
+        #img = 1 - np.asarray(Image.open(img_path))/255
         img=img.astype(np.float32)
 
         if self.transform:

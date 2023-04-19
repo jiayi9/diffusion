@@ -65,6 +65,7 @@ class UnetUp(nn.Module):
 class EmbedFC(nn.Module):
     def __init__(self, input_dim, emb_dim):
         super(EmbedFC, self).__init__()
+        # the inputr dimension for one image is typically 1
         self.input_dim = input_dim
         self.model = nn.Sequential(
             nn.Linear(input_dim, emb_dim),
@@ -93,7 +94,11 @@ class ContextUnet(nn.Module):
         self.down_sample_3 = UnetDown(2 * n_feat, 4 * n_feat)
         self.down_sample_4 = UnetDown(4 * n_feat, 8 * n_feat)
 
-        self.to_vec = nn.Sequential(nn.AvgPool2d(7), nn.GELU())
+        # 128/(2^4)=8  256/(2^4)=16  512/(2^4)=32
+
+        self.avg_pool_size = int(128/(2**4))
+
+        self.to_vec = nn.Sequential(nn.AvgPool2d(self.avg_pool_size), nn.GELU())
 
         self.time_embed_1 = EmbedFC(1, 8 * n_feat)
         self.time_embed_2 = EmbedFC(1, 4 * n_feat)
@@ -107,19 +112,18 @@ class ContextUnet(nn.Module):
 
         self.up_sample_0 = nn.Sequential(
             # nn.ConvTranspose2d(6 * n_feat, 2 * n_feat, 7, 7), # when concat temb and cemb end up w 6*n_feat
-            nn.ConvTranspose2d(8 * n_feat, 8 * n_feat, 7, 7),  # otherwise just have 2*n_feat
+            nn.ConvTranspose2d(8 * n_feat, 8 * n_feat, self.avg_pool_size, self.avg_pool_size),
             nn.GroupNorm(8, 8 * n_feat),
             nn.ReLU(),
         )
 
-        nnn = nn.ConvTranspose2d(4, 4, 7, 7)
-        x = torch.rand(2, 4, 1, 1)
+        # nnn = nn.ConvTranspose2d(4, 4, 7, 7)
+        # x = torch.rand(2, 4, 1, 1)
+        #
+        # nnn(x).shape
 
-        nnn(x).shape
-
-
-        self.up_sample_1 = UnetUp(16 * n_feat, n_feat)
-        self.up_sample_2 = UnetUp(8 * n_feat, n_feat)
+        self.up_sample_1 = UnetUp(16 * n_feat, 4 * n_feat)
+        self.up_sample_2 = UnetUp(8 * n_feat, 2 * n_feat)
         self.up_sample_3 = UnetUp(4 * n_feat, n_feat)
         self.up_sample_4 = UnetUp(2 * n_feat, n_feat)
 
@@ -130,7 +134,7 @@ class ContextUnet(nn.Module):
             nn.Conv2d(n_feat, self.in_channels, 3, 1, 1),
         )
 
-    def forward(self, x, c, t, context_mask):
+    def forward(self, x, cc, t, context_mask):
         # x is (noisy) image, c is context label, t is timestep,
         # context_mask says which samples to block the context on
         # x = torch.concat([x,x,x,x], axis=2)
@@ -155,22 +159,20 @@ class ContextUnet(nn.Module):
         hidden_vec = self.to_vec(down_4)
         # torch.Size([10, 512, 1, 1])
 
-        breakpoint()
-
         # convert context to one hot embedding
-        c = nn.functional.one_hot(c, num_classes=self.n_classes).type(torch.float)
+        cc = nn.functional.one_hot(cc, num_classes=self.n_classes).type(torch.float)
 
         # mask out context if context_mask == 1
         context_mask = context_mask[:, None]
         context_mask = context_mask.repeat(1, self.n_classes)
         context_mask = (-1 * (1 - context_mask))  # need to flip 0 <-> 1
-        c = c * context_mask
+        cc = cc * context_mask
 
         # embed context, time step
-        c_emb_1 = self.context_embed_1(c).view(-1, self.n_feat * 8, 1, 1)
-        c_emb_2 = self.context_embed_2(c).view(-1, self.n_feat * 4, 1, 1)
-        c_emb_3 = self.context_embed_3(c).view(-1, self.n_feat * 2, 1, 1)
-        c_emb_4 = self.context_embed_4(c).view(-1, self.n_feat * 1, 1, 1)
+        c_emb_1 = self.context_embed_1(cc).view(-1, self.n_feat * 8, 1, 1)
+        c_emb_2 = self.context_embed_2(cc).view(-1, self.n_feat * 4, 1, 1)
+        c_emb_3 = self.context_embed_3(cc).view(-1, self.n_feat * 2, 1, 1)
+        c_emb_4 = self.context_embed_4(cc).view(-1, self.n_feat * 1, 1, 1)
 
         t_emb_1 = self.time_embed_1(t).view(-1, self.n_feat * 8, 1, 1)
         t_emb_2 = self.time_embed_2(t).view(-1, self.n_feat * 4, 1, 1)
@@ -181,7 +183,7 @@ class ContextUnet(nn.Module):
         # hiddenvec = torch.cat((hiddenvec, temb1, cemb1), 1)
 
         up1 = self.up_sample_0(hidden_vec)
-
+        #breakpoint()
         # up2 = self.up1(up1, down2) # if want to avoid add and multiply embeddings
         up2 = self.up_sample_1(c_emb_1 * up1 + t_emb_1, down_4)  # add and multiply embeddings
         up3 = self.up_sample_2(c_emb_2 * up2 + t_emb_2, down_3)
@@ -233,7 +235,7 @@ class DDPM(nn.Module):
         self.drop_prob = drop_prob
         self.loss_mse = nn.MSELoss()
 
-    def forward(self, x, c):
+    def forward(self, x, cc):
         """
         this method is used in training, so samples t and noise randomly
         """
@@ -250,10 +252,10 @@ class DDPM(nn.Module):
         # We should predict the "error term" from this x_t. Loss is what we return.
 
         # dropout context with some probability
-        context_mask = torch.bernoulli(torch.zeros_like(c) + self.drop_prob).to(self.device)
+        context_mask = torch.bernoulli(torch.zeros_like(cc) + self.drop_prob).to(self.device)
 
         # return MSE between added noise, and our predicted noise
-        return self.loss_mse(noise, self.nn_model(x_t, c, _ts / self.n_T, context_mask))
+        return self.loss_mse(noise, self.nn_model(x_t, cc, _ts / self.n_T, context_mask))
 
     def sample(self, n_sample, size, device, guide_w=0.0):
         # we follow the guidance sampling scheme described in 'Classifier-Free Diffusion Guidance'
@@ -336,7 +338,7 @@ def train_mnist():
     # optionally load a model
     # ddpm.load_state_dict(torch.load("./data/diffusion_outputs/ddpm_unet01_mnist_9.pth"))
 
-    tf = transforms.Compose([transforms.ToTensor(), transforms.Resize((112, 112))])  # mnist is already normalised 0 to 1
+    tf = transforms.Compose([transforms.ToTensor(), transforms.Resize((128, 128))])  # mnist is already normalised 0 to 1
 
     dataset = MNIST(data_folder, train=True, download=True, transform=tf)
 
@@ -350,10 +352,10 @@ def train_mnist():
         # linear lrate decay
         optim.param_groups[0]['lr'] = lrate * (1 - ep / n_epoch)
 
-        #pbar = tqdm(dataloader)
+        pbar = tqdm(dataloader)
         loss_ema = None
-        # for x, cc in pbar:
-        for x, cc in dataloader:
+        for x, cc in pbar:
+        #for x, cc in dataloader:
             optim.zero_grad()
             x = x.to(device)
             cc = cc.to(device)
@@ -372,7 +374,7 @@ def train_mnist():
         with torch.no_grad():
             n_sample = 4 * n_classes
             for w_i, w in enumerate(ws_test):
-                x_gen, x_gen_store = ddpm.sample(n_sample, (1, 28, 28), device, guide_w=w)
+                x_gen, x_gen_store = ddpm.sample(n_sample, (1, 128, 128), device, guide_w=w)
 
                 # append some real images at bottom, order by class also
                 x_real = torch.Tensor(x_gen.shape).to(device)

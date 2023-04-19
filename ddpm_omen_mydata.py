@@ -82,7 +82,8 @@ class ClsDataset(Dataset):
         img = np.asarray(Image.open(img_path))/255
 
         #img = 1 - np.asarray(Image.open(img_path))/255
-        img=img.astype(np.float32)
+        img = img.astype(np.float32)
+        img = img[:, :, 0]
 
         if self.transform:
             img = self.transform(image=img)["image"]
@@ -370,8 +371,8 @@ def train_my_data():
 
     data_df = create_classification_df(data_folder)
 
-    _mean = (0.485, 0.456, 0.406)
-    _std = (0.229, 0.224, 0.225)
+    # _mean = (0.485, 0.456, 0.406)
+    # _std = (0.229, 0.224, 0.225)
 
     tf = A.Compose([
         A.Resize(128, 128),
@@ -384,7 +385,7 @@ def train_my_data():
     save_dir = 'D:/temp/simulated_shapes_ddpm_outputs/'
 
     # hardcoding these here
-    n_epoch = 1000
+    n_epoch = 5000
     batch_size = 25
     n_T = 200  # 500
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -393,9 +394,9 @@ def train_my_data():
     n_feat = 64  # 128 ok, 256 better (but slower)
     lrate = 1e-4
     save_model = False
-    ws_test = [0.0]#, 0.5, 2.0]  # strength of generative guidance
+    ws_test = [0.0, 2.0]  # strength of generative guidance
 
-    ddpm = DDPM(nn_model=ContextUnet(in_channels=3, n_feat=n_feat, n_classes=n_classes), betas=(1e-4, 0.02), n_T=n_T,
+    ddpm = DDPM(nn_model=ContextUnet(in_channels=1, n_feat=n_feat, n_classes=n_classes), betas=(1e-4, 0.02), n_T=n_T,
                 device=device, drop_prob=0.1)
     ddpm.to(device)
 
@@ -425,6 +426,7 @@ def train_my_data():
         for x, cc in pbar:
         #for x, cc in dataloader:
             optim.zero_grad()
+            #print(x[0], x[0].max(), x[0][x[0]>0.2].min())
             x = x.to(device)
             cc = cc.to(device)
             loss = ddpm(x, cc)
@@ -443,7 +445,8 @@ def train_my_data():
             n_sample = 4 * n_classes
             for w_i, w in enumerate(ws_test):
 
-                x_gen, x_gen_store = ddpm.sample(n_sample, (3, 128, 128), device, guide_w=w)
+                #x_gen, x_gen_store = ddpm.sample(n_sample, (3, 128, 128), device, guide_w=w)
+                x_gen, x_gen_store = ddpm.sample(n_sample, (1, 128, 128), device, guide_w=w)
 
                 # append some real images at bottom, order by class also
                 x_real = torch.Tensor(x_gen.shape).to(device)

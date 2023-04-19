@@ -1,3 +1,4 @@
+import os
 from typing import Dict, Tuple
 from tqdm import tqdm
 import torch
@@ -314,18 +315,23 @@ class DDPM(nn.Module):
 
 def train_mnist():
 
+    # os.environ['CUDA_VISIABLE_DEVICES'] = ''
+    # device_ids = [0,1]
+    # model = torch.nn.DataParallel(
+
+
     # download data first
     # dataset = MNIST("D:/temp/teapearce/mnist", train=True, download=True)#, transform=tf)
     data_folder = "D:/temp/teapearce/mnist"
     save_dir = 'D:/temp/teapearce/diffusion_outputs10/'
 
     # hardcoding these here
-    n_epoch = 10
-    batch_size = 10
-    n_T = 200  # 500
+    n_epoch = 1000
+    batch_size = 40
+    n_T = 500  # 500
     device = "cuda" if torch.cuda.is_available() else "cpu"
     n_classes = 10
-    n_feat = 8  # 128 ok, 256 better (but slower)
+    n_feat = 32  # 128 ok, 256 better (but slower)
     lrate = 1e-4
     save_model = False
     # ws_test = [0.0, 0.5, 2.0]  # strength of generative guidance
@@ -344,6 +350,8 @@ def train_mnist():
 
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     optim = torch.optim.Adam(ddpm.parameters(), lr=lrate)
+
+    ddpm = torch.nn.DataParallel(ddpm)
 
     for ep in range(n_epoch):
         print(f'epoch {ep}')
@@ -372,7 +380,7 @@ def train_mnist():
         # followed by real images (bottom rows)
         ddpm.eval()
         with torch.no_grad():
-            n_sample = 4 * n_classes
+            n_sample = 1 * n_classes
             for w_i, w in enumerate(ws_test):
                 x_gen, x_gen_store = ddpm.sample(n_sample, (1, 128, 128), device, guide_w=w)
 

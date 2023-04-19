@@ -260,22 +260,22 @@ def visualize_npz_mask(
     return mask_concat
 
 
-quick_simulate('C:/Temp/simulated_shapes', 50, (128, 128))
+quick_simulate('D:/Temp/simulated_shapes', 500, (128, 128), convert_to_rgb=True)
 
 
 #######################################################################################################################
 
 
-
-
-data_path = "C:/temp/simulated_shapes"
-dataset = create_classification_df(data_path)
-clsdataset = ClsDataset(dataset)
-
-clsdataloader = DataLoader(
-    clsdataset,
-    batch_size=2,
-    shuffle=True,
-    num_workers=0,
-    pin_memory=True,
-)
+#
+#
+# data_path = "C:/temp/simulated_shapes"
+# dataset = create_classification_df(data_path)
+# clsdataset = ClsDataset(dataset)
+#
+# clsdataloader = DataLoader(
+#     clsdataset,
+#     batch_size=2,
+#     shuffle=True,
+#     num_workers=0,
+#     pin_memory=True,
+# )

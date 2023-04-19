@@ -79,11 +79,15 @@ class ClsDataset(Dataset):
         label = torch.tensor(label, dtype=torch.int64)
 
         img_path = self.img_paths[idx]
-        img = np.asarray(Image.open(img_path))
+        #img = np.asarray(Image.open(img_path))/255
+
+        img = 1 - np.asarray(Image.open(img_path))/255
+        img=img.astype(np.float32)
 
         if self.transform:
             img = self.transform(image=img)["image"]
-
+        #img = torch.source(img, dtype=torch.float32)
+        #breakpoint()
         return img, label
 
 
@@ -336,7 +340,6 @@ class DDPM(nn.Module):
         x_i_store = []  # keep track of generated steps in case want to plot something
 
         for i in range(self.n_T, 0, -1):
-            print(i)
             print(f'sampling timestep {i}', end='\r')
             t_is = torch.tensor([i / self.n_T]).to(device)
             t_is = t_is.repeat(n_sample, 1, 1, 1)
@@ -372,17 +375,17 @@ def train_my_data():
 
     tf = A.Compose([
         A.Resize(128, 128),
-        A.Normalize(mean=_mean, std=_std, p=1),
+        #A.Normalize(mean=_mean, std=_std, p=1),
         ToTensor(),
     ])
 
     data_set = ClsDataset(data_df, transform=tf)
 
-    save_dir = 'C:/temp/simulated_shapes_ddpm_outputs/'
+    save_dir = 'D:/temp/simulated_shapes_ddpm_outputs/'
 
     # hardcoding these here
-    n_epoch = 10
-    batch_size = 10
+    n_epoch = 1000
+    batch_size = 25
     n_T = 200  # 500
     device = "cuda" if torch.cuda.is_available() else "cpu"
     #device = "cuda:0"
@@ -401,6 +404,12 @@ def train_my_data():
     dataloader = DataLoader(data_set, batch_size=batch_size, shuffle=True, num_workers=0)
 
     # next(iter(dataloader))[0].shape
+
+    # x = next(iter(dataloader))[0][0]
+    # x2 = x.permute(1,2,0)
+    # plt.imshow(x2)
+    # plt.show()
+    # exit()
 
     optim = torch.optim.Adam(ddpm.parameters(), lr=lrate)
 
@@ -458,24 +467,24 @@ def train_my_data():
                     fig, axs = plt.subplots(nrows=int(n_sample / n_classes), ncols=n_classes, sharex=True, sharey=True,
                                             figsize=(8, 3))
 
-                    # def animate_diff(i, x_gen_store):
-                    #     print(f'gif animating frame {i} of {x_gen_store.shape[0]}', end='\r')
-                    #     plots = []
-                    #     for row in range(int(n_sample / n_classes)):
-                    #         for col in range(n_classes):
-                    #             axs[row, col].clear()
-                    #             axs[row, col].set_xticks([])
-                    #             axs[row, col].set_yticks([])
-                    #             # plots.append(axs[row, col].imshow(x_gen_store[i,(row*n_classes)+col,0],cmap='gray'))
-                    #             plots.append(
-                    #                 axs[row, col].imshow(-x_gen_store[i, (row * n_classes) + col, 0], cmap='gray',
-                    #                                      vmin=(-x_gen_store[i]).min(), vmax=(-x_gen_store[i]).max()))
-                    #     return plots
-                    #
-                    # ani = FuncAnimation(fig, animate_diff, fargs=[x_gen_store], interval=200, blit=False, repeat=True,
-                    #                     frames=x_gen_store.shape[0])
-                    # ani.save(save_dir + f"gif_ep{ep}_w{w}.gif", dpi=100, writer=PillowWriter(fps=5))
-                    # print('saved image at ' + save_dir + f"gif_ep{ep}_w{w}.gif")
+                    def animate_diff(i, x_gen_store):
+                        print(f'gif animating frame {i} of {x_gen_store.shape[0]}', end='\r')
+                        plots = []
+                        for row in range(int(n_sample / n_classes)):
+                            for col in range(n_classes):
+                                axs[row, col].clear()
+                                axs[row, col].set_xticks([])
+                                axs[row, col].set_yticks([])
+                                # plots.append(axs[row, col].imshow(x_gen_store[i,(row*n_classes)+col,0],cmap='gray'))
+                                plots.append(
+                                    axs[row, col].imshow(-x_gen_store[i, (row * n_classes) + col, 0], cmap='gray',
+                                                         vmin=(-x_gen_store[i]).min(), vmax=(-x_gen_store[i]).max()))
+                        return plots
+
+                    ani = FuncAnimation(fig, animate_diff, fargs=[x_gen_store], interval=200, blit=False, repeat=True,
+                                        frames=x_gen_store.shape[0])
+                    ani.save(save_dir + f"gif_ep{ep}_w{w}.gif", dpi=100, writer=PillowWriter(fps=5))
+                    print('saved image at ' + save_dir + f"gif_ep{ep}_w{w}.gif")
         # optionally save model
         if save_model and ep == int(n_epoch - 1):
             torch.save(ddpm.state_dict(), save_dir + f"model_{ep}.pth")

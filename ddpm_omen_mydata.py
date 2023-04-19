@@ -387,7 +387,7 @@ def train_my_data():
     # hardcoding these here
     n_epoch = 5000
     batch_size = 25
-    n_T = 500  # 500
+    n_T = 400  # 500
     device = "cuda" if torch.cuda.is_available() else "cpu"
     #device = "cuda:0"
     n_classes = 3

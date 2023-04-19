@@ -363,7 +363,7 @@ class DDPM(nn.Module):
 
 def train_my_data():
 
-    data_folder = "C:/temp/simulated_shapes"
+    data_folder = "D:/temp/simulated_shapes"
 
     data_df = create_classification_df(data_folder)
 

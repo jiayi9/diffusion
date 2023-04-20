@@ -83,7 +83,7 @@ class ClsDataset(Dataset):
 
         #img = 1 - np.asarray(Image.open(img_path))/255
         img = img.astype(np.float32)
-        img = img[:, :, 0]
+        #img = img[:, :, 0]
 
         if self.transform:
             img = self.transform(image=img)["image"]
@@ -396,7 +396,7 @@ def train_my_data():
     save_model = False
     ws_test = [0.0, 2.0]  # strength of generative guidance
 
-    ddpm = DDPM(nn_model=ContextUnet(in_channels=1, n_feat=n_feat, n_classes=n_classes), betas=(1e-4, 0.02), n_T=n_T,
+    ddpm = DDPM(nn_model=ContextUnet(in_channels=3, n_feat=n_feat, n_classes=n_classes), betas=(1e-4, 0.02), n_T=n_T,
                 device=device, drop_prob=0.1)
     ddpm.to(device)
 
@@ -445,8 +445,8 @@ def train_my_data():
             n_sample = 4 * n_classes
             for w_i, w in enumerate(ws_test):
 
-                #x_gen, x_gen_store = ddpm.sample(n_sample, (3, 128, 128), device, guide_w=w)
-                x_gen, x_gen_store = ddpm.sample(n_sample, (1, 128, 128), device, guide_w=w)
+                x_gen, x_gen_store = ddpm.sample(n_sample, (3, 128, 128), device, guide_w=w)
+                #x_gen, x_gen_store = ddpm.sample(n_sample, (1, 128, 128), device, guide_w=w)
 
                 # append some real images at bottom, order by class also
                 x_real = torch.Tensor(x_gen.shape).to(device)

@@ -157,14 +157,12 @@ def simulate_random_shapes(
         # save image
         img_output_path = os.path.join(output_folder, uuid_str + "." + image_format)
 
-        # cv2.imwrite(img_output_path, img_new * 255)
+        cv2.imwrite(img_output_path, img_new * 255)
 
-        multiplier = np.random.randint(128, high=255, size=img_new.shape, dtype=int)
-        product = img_new * multiplier
+        # multiplier = np.random.randint(128, high=255, size=img_new.shape, dtype=int)
+        # product = img_new * multiplier
+        # cv2.imwrite(img_output_path, product)
 
-        cv2.imwrite(img_output_path, product)
-
-        #cv2.imwrite(img_output_path, product.astype(np.uint8))
 
         # save mask
         mask_output_path = os.path.join(
